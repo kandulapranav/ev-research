@@ -41,8 +41,6 @@ Each query below has three parts:
 - **Sources:** the file or API endpoint the answer comes from.
 - **A comparison table:** the same model (Gemini 3.5 Flash) with no tools and no system prompt, next to EV Research.
 
-Full answers and every tool call are in [`traces/`](traces/).
-
 ### 1. "Is a used 2021 Ford Mustang Mach-E a safe bet?"
 
 **Expected:**
