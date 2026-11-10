@@ -1,6 +1,6 @@
 # ⚡ EV Research
 
-**Live:** https://REPLACE-ME.run.app · **Path:** Deep Research
+**Live:** https://ev-research-git-485071834023.europe-west1.run.app/ · **Path:** Deep Research
 
 ## The project and who it's for
 
