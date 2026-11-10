@@ -31,8 +31,6 @@ key. To rebuild the files from the original downloads, run `uv run build/fetch_d
 Complaints come from the bulk files because the Complaints API only matches NHTSA's exact model
 spelling and returned nothing for every Tesla.
 
-To run the app locally: `gcloud auth application-default login`, then `uv run app.py`
-and open http://localhost:8000.
 
 ## Sample queries
 
