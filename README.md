@@ -1,6 +1,6 @@
 # EV Research
 
-**Live:** https://ev-research-git-485071834023.europe-west1.run.app/ · **Path:** Deep Research
+**Live Link:** https://ev-research-git-485071834023.europe-west1.run.app/ 
 
 ## The project and who it's for
 
