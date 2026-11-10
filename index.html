@@ -1,0 +1,1391 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>EV Research</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+        <style>
+            :root {
+                color-scheme: dark;
+                --space: #05080d;
+                --window: rgba(12, 18, 26, 0.5);
+                --surface: rgba(255, 255, 255, 0.06);
+                --edge: rgba(255, 255, 255, 0.1);
+                --canvas: rgba(255, 255, 255, 0.04);
+                --gray: rgba(255, 255, 255, 0.09);
+                --text: #e9f1f3;
+                --soft-text: #b6c3c8;
+                --muted: #869399;
+                --volt: #2ef2b0;
+                --volt-2: #7dffd6;
+                --sky: #22b8ff;
+                --gradient: linear-gradient(135deg, #7dffd6 0%, #2ef2b0 40%, #22b8ff 100%);
+                --glow: 0 10px 26px -10px rgba(46, 242, 176, 0.75);
+                --good: #2ef2b0;
+                --warn: #ffc24b;
+                --bad: #ff6b7a;
+                --soft-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.75);
+                --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+            }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family: "Inter", system-ui, sans-serif;
+                background: radial-gradient(ellipse at 50% 120%, rgba(34, 184, 255, 0.12), transparent 60%), var(--space);
+                color: var(--text);
+                height: 100vh;
+                height: 100dvh;
+                overflow: hidden;
+            }
+            button {
+                font: inherit;
+                cursor: pointer;
+                border: none;
+                background: none;
+                color: inherit;
+            }
+            a {
+                color: inherit;
+            }
+
+            /* --- Night sky --- */
+            .stars,
+            .stars::after {
+                position: fixed;
+                inset: 0;
+                z-index: -1;
+                pointer-events: none;
+                background-image:
+                    radial-gradient(1px 1px at 25px 35px, #fff, transparent),
+                    radial-gradient(1px 1px at 140px 80px, #fff, transparent),
+                    radial-gradient(1.5px 1.5px at 90px 160px, #fff, transparent),
+                    radial-gradient(1px 1px at 200px 220px, #fff, transparent),
+                    radial-gradient(1px 1px at 260px 60px, #fff, transparent);
+                background-size: 300px 260px;
+                opacity: 0.4;
+                animation: twinkle 5s ease-in-out infinite alternate;
+            }
+            .stars::after {
+                content: "";
+                background-size: 410px 370px;
+                background-position: 120px 90px;
+                animation-delay: -2.5s;
+            }
+            @keyframes twinkle {
+                to {
+                    opacity: 0.12;
+                }
+            }
+            .shooting-star {
+                position: fixed;
+                top: 12%;
+                left: 78%;
+                z-index: -1;
+                width: 90px;
+                height: 1px;
+                background: linear-gradient(90deg, rgba(125, 255, 214, 0.9), transparent);
+                opacity: 0;
+                animation: shoot 9s ease-out infinite 2s;
+            }
+            @keyframes shoot {
+                0% {
+                    opacity: 0;
+                    transform: rotate(-20deg) translateX(0);
+                }
+                3% {
+                    opacity: 1;
+                }
+                10%,
+                100% {
+                    opacity: 0;
+                    transform: rotate(-20deg) translateX(-260px);
+                }
+            }
+
+            /* --- The charge orb (welcome) and bolt avatars --- */
+            .bolt {
+                position: relative;
+                flex: none;
+                width: var(--size, 32px);
+                height: var(--size, 32px);
+                border-radius: 50%;
+                background: radial-gradient(circle at 34% 28%, #b8ffe9 0%, #2ef2b0 38%, #0a9f86 70%, #04463f 100%);
+                box-shadow:
+                    inset calc(var(--size, 32px) * -0.1) calc(var(--size, 32px) * -0.13) calc(var(--size, 32px) * 0.22) rgba(0, 0, 0, 0.45),
+                    0 0 calc(var(--size, 32px) * 0.5) rgba(46, 242, 176, 0.35);
+                display: grid;
+                place-items: center;
+            }
+            .bolt svg.icon {
+                width: 52%;
+                height: 52%;
+                filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+            }
+            .bolt svg.ring {
+                position: absolute;
+                inset: -14%;
+                width: 128%;
+                height: 128%;
+                animation: spin 6s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            /* --- Layout: one glass window --- */
+            .app {
+                height: 100%;
+                max-width: 920px;
+                margin: 0 auto;
+                padding: 1.25rem 1rem 0.5rem;
+                display: flex;
+                flex-direction: column;
+            }
+            .window {
+                position: relative;
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                background: var(--window);
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+                border: 1px solid var(--edge);
+                border-radius: 22px;
+                overflow: clip;
+                box-shadow:
+                    0 30px 80px -20px rgba(0, 0, 0, 0.75),
+                    0 0 0 1px rgba(255, 255, 255, 0.05);
+            }
+            .footnote {
+                text-align: center;
+                padding: 0.6rem 0 0.2rem;
+                font-family: var(--mono);
+                font-size: 0.64rem;
+                letter-spacing: 0.08em;
+                color: rgba(255, 255, 255, 0.4);
+            }
+            .win-head {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.85rem 1rem;
+                border-bottom: 1px solid var(--edge);
+            }
+            .avatar-wrap {
+                position: relative;
+            }
+            .online {
+                position: absolute;
+                right: -1px;
+                bottom: -1px;
+                width: 11px;
+                height: 11px;
+                border-radius: 50%;
+                background: var(--volt);
+                border: 2px solid #0b1219;
+            }
+            .who {
+                flex: 1;
+                min-width: 0;
+                line-height: 1.25;
+            }
+            .who b {
+                display: block;
+                font-size: 1rem;
+            }
+            .who span {
+                font-size: 0.78rem;
+                color: var(--soft-text);
+            }
+            .icon-btn {
+                width: 2.2rem;
+                height: 2.2rem;
+                border-radius: 50%;
+                font-size: 1.05rem;
+                color: var(--soft-text);
+                flex: none;
+            }
+            .icon-btn:hover {
+                background: var(--gray);
+                color: var(--text);
+            }
+            #scroll {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1.25rem 1rem 1.5rem;
+            }
+
+            /* --- Welcome --- */
+            #welcome {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                padding: 1rem 0 0.5rem;
+            }
+            #welcome[hidden] {
+                display: none;
+            }
+            .orb {
+                position: relative;
+                margin-bottom: 1.5rem;
+                animation: float 5s ease-in-out infinite;
+            }
+            .orb::before,
+            .orb::after {
+                content: "";
+                position: absolute;
+                inset: -12px;
+                border-radius: 50%;
+                border: 2px solid rgba(46, 242, 176, 0.45);
+                animation: pulse 2.6s ease-out infinite;
+            }
+            .orb::after {
+                animation-delay: 1.3s;
+            }
+            @keyframes pulse {
+                from {
+                    transform: scale(0.9);
+                    opacity: 1;
+                }
+                to {
+                    transform: scale(1.35);
+                    opacity: 0;
+                }
+            }
+            @keyframes float {
+                50% {
+                    transform: translateY(-10px);
+                }
+            }
+            #welcome h1 {
+                font-size: clamp(1.5rem, 5vw, 1.95rem);
+                font-weight: 800;
+                letter-spacing: -0.03em;
+            }
+            #welcome h1 span {
+                background: var(--gradient);
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+            }
+            #welcome > p {
+                margin-top: 0.5rem;
+                max-width: 34rem;
+                color: var(--muted);
+                line-height: 1.5;
+                font-size: 0.95rem;
+            }
+            .about {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.6rem;
+                width: 100%;
+                max-width: 680px;
+                margin-top: 1.3rem;
+                text-align: left;
+            }
+            .about div {
+                background: var(--surface);
+                border: 1px solid var(--edge);
+                border-radius: 14px;
+                padding: 0.75rem 0.85rem;
+                font-size: 0.82rem;
+                line-height: 1.45;
+                color: var(--soft-text);
+            }
+            .about .eyebrow {
+                color: var(--volt-2);
+                margin-bottom: 0.3rem;
+            }
+            .options {
+                width: 100%;
+                max-width: 680px;
+                margin-top: 0.9rem;
+                background: var(--surface);
+                border: 1px solid var(--edge);
+                border-radius: 16px;
+                box-shadow: var(--soft-shadow);
+                padding: 0.9rem 1rem 0.4rem;
+                text-align: left;
+            }
+            .options-title {
+                font-weight: 700;
+                font-size: 0.95rem;
+                padding-bottom: 0.4rem;
+            }
+            .options button {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                width: 100%;
+                padding: 0.7rem 0.1rem;
+                border-top: 1px solid var(--gray);
+                font-size: 0.9rem;
+                color: var(--soft-text);
+                text-align: left;
+            }
+            .options button::before {
+                content: "";
+                flex: none;
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: var(--volt);
+                box-shadow: 0 0 8px var(--volt);
+            }
+            .options button:hover {
+                color: var(--text);
+            }
+            .sources-line {
+                margin-top: 0.9rem;
+                font-family: var(--mono);
+                font-size: 0.64rem;
+                letter-spacing: 0.08em;
+                color: var(--muted);
+            }
+
+            /* --- Messages --- */
+            #messages {
+                display: flex;
+                flex-direction: column;
+                gap: 1.1rem;
+            }
+            .row {
+                display: flex;
+                align-items: flex-start;
+                gap: 0.55rem;
+            }
+            .row.user {
+                justify-content: flex-end;
+            }
+            .stack {
+                display: flex;
+                flex-direction: column;
+                gap: 0.65rem;
+                min-width: 0;
+                flex: 1;
+            }
+            .row.user .stack {
+                flex: none;
+                max-width: 82%;
+                align-items: flex-end;
+            }
+            .bubble {
+                padding: 0.75rem 0.95rem;
+                border-radius: 18px;
+                line-height: 1.55;
+                font-size: 0.94rem;
+                overflow-wrap: anywhere;
+            }
+            .bubble.me {
+                background: var(--gradient);
+                color: #03221b;
+                border-bottom-right-radius: 5px;
+                box-shadow: var(--glow);
+                font-weight: 600;
+            }
+            .bubble.bot {
+                background: var(--surface);
+                border: 1px solid var(--edge);
+                border-top-left-radius: 5px;
+                box-shadow: 0 2px 8px -4px rgba(0, 0, 0, 0.5);
+            }
+            .bubble.clarify {
+                border-color: rgba(255, 194, 75, 0.45);
+                background: rgba(255, 194, 75, 0.07);
+            }
+            .bubble.clarify .eyebrow {
+                color: var(--warn);
+                margin-bottom: 0.25rem;
+            }
+            .error {
+                color: var(--bad);
+            }
+            .eyebrow {
+                display: block;
+                font-family: var(--mono);
+                font-size: 0.64rem;
+                font-weight: 700;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: var(--muted);
+            }
+            .rise {
+                animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+            }
+            @keyframes rise {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px) scale(0.98);
+                }
+            }
+
+            /* --- Loading: an EV cruising down the road --- */
+            .drive {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .road-scene {
+                width: 220px;
+                height: 78px;
+                overflow: hidden;
+                border-radius: 12px;
+            }
+            .road-scene .dashes {
+                stroke-dasharray: 14 12;
+                animation: dash 0.5s linear infinite;
+            }
+            @keyframes dash {
+                to {
+                    stroke-dashoffset: -26;
+                }
+            }
+            .road-scene .posts {
+                animation: posts 1.6s linear infinite;
+            }
+            @keyframes posts {
+                from {
+                    transform: translateX(0);
+                }
+                to {
+                    transform: translateX(-110px);
+                }
+            }
+            .road-scene .hills {
+                animation: hills 9s linear infinite;
+            }
+            @keyframes hills {
+                to {
+                    transform: translateX(-220px);
+                }
+            }
+            .road-scene .car {
+                animation: bob 0.6s ease-in-out infinite alternate;
+            }
+            @keyframes bob {
+                to {
+                    transform: translateY(-1.2px);
+                }
+            }
+            .road-scene .wheel {
+                transform-box: fill-box;
+                transform-origin: center;
+                animation: roll 0.45s linear infinite;
+            }
+            @keyframes roll {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            .road-scene .speed line {
+                animation: whoosh 0.7s linear infinite;
+            }
+            .road-scene .speed line:nth-child(2) {
+                animation-delay: -0.25s;
+            }
+            .road-scene .speed line:nth-child(3) {
+                animation-delay: -0.5s;
+            }
+            @keyframes whoosh {
+                from {
+                    transform: translateX(0);
+                    opacity: 0.9;
+                }
+                to {
+                    transform: translateX(-34px);
+                    opacity: 0;
+                }
+            }
+            .road-scene .charge {
+                animation: zap 1.2s ease-in-out infinite;
+            }
+            @keyframes zap {
+                50% {
+                    opacity: 0.25;
+                }
+            }
+            .drive small {
+                font-size: 0.78rem;
+                color: var(--muted);
+                font-style: italic;
+            }
+
+            /* --- Live research board --- */
+            .board {
+                background: var(--surface);
+                border: 1px solid var(--edge);
+                border-radius: 18px;
+                padding: 0.85rem 1rem 0.9rem;
+                box-shadow: var(--soft-shadow);
+            }
+            .board-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.75rem;
+                margin-bottom: 0.6rem;
+            }
+            .battery {
+                display: flex;
+                align-items: center;
+                gap: 0.45rem;
+                font-family: var(--mono);
+                font-size: 0.66rem;
+                color: var(--soft-text);
+            }
+            .battery .cell {
+                position: relative;
+                width: 64px;
+                height: 16px;
+                border: 1.5px solid rgba(255, 255, 255, 0.45);
+                border-radius: 4px;
+                padding: 1.5px;
+            }
+            .battery .cell::after {
+                content: "";
+                position: absolute;
+                right: -5px;
+                top: 4px;
+                width: 3px;
+                height: 6px;
+                border-radius: 0 2px 2px 0;
+                background: rgba(255, 255, 255, 0.45);
+            }
+            .battery .fill {
+                height: 100%;
+                width: 6%;
+                border-radius: 2px;
+                background: var(--gradient);
+                box-shadow: 0 0 10px rgba(46, 242, 176, 0.6);
+                transition: width 0.5s ease;
+            }
+            .lead-line {
+                font-size: 0.8rem;
+                color: var(--soft-text);
+                margin-bottom: 0.55rem;
+            }
+            .lead-line b {
+                color: var(--text);
+            }
+            .researchers {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+                gap: 0.5rem;
+            }
+            .rcard {
+                background: rgba(0, 0, 0, 0.25);
+                border: 1px solid var(--edge);
+                border-radius: 12px;
+                padding: 0.6rem 0.7rem;
+                font-size: 0.78rem;
+                line-height: 1.4;
+                position: relative;
+                overflow: hidden;
+            }
+            .rcard::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 2px;
+                width: 40%;
+                background: var(--gradient);
+                animation: scan 1.4s ease-in-out infinite;
+            }
+            .rcard.done::before {
+                width: 100%;
+                animation: none;
+            }
+            @keyframes scan {
+                0% {
+                    transform: translateX(-100%);
+                }
+                100% {
+                    transform: translateX(260%);
+                }
+            }
+            .rcard b {
+                display: flex;
+                align-items: center;
+                gap: 0.35rem;
+                font-size: 0.8rem;
+            }
+            .rcard .status {
+                margin-left: auto;
+                font-family: var(--mono);
+                font-size: 0.6rem;
+                color: var(--muted);
+            }
+            .rcard.done .status {
+                color: var(--volt);
+            }
+            .rcard p {
+                color: var(--soft-text);
+                margin-top: 0.25rem;
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            .rcard .tools {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.25rem;
+                margin-top: 0.4rem;
+            }
+            .chip {
+                font-family: var(--mono);
+                font-size: 0.6rem;
+                padding: 0.1rem 0.4rem;
+                border-radius: 999px;
+                background: rgba(46, 242, 176, 0.1);
+                border: 1px solid rgba(46, 242, 176, 0.3);
+                color: var(--volt-2);
+            }
+
+            /* --- Report --- */
+            .verdict {
+                display: grid;
+                grid-template-columns: auto 1fr;
+                gap: 0.9rem;
+                align-items: center;
+                border-radius: 18px;
+                padding: 1rem 1.1rem;
+                border: 1px solid var(--edge);
+                background: var(--surface);
+                box-shadow: var(--soft-shadow);
+            }
+            .verdict .badge {
+                width: 4.4rem;
+                height: 4.4rem;
+                border-radius: 50%;
+                display: grid;
+                place-items: center;
+                font-size: 1.9rem;
+            }
+            .verdict.buy .badge {
+                background: rgba(46, 242, 176, 0.15);
+                box-shadow: 0 0 0 2px rgba(46, 242, 176, 0.5), 0 0 24px rgba(46, 242, 176, 0.35);
+            }
+            .verdict.caution .badge {
+                background: rgba(255, 194, 75, 0.14);
+                box-shadow: 0 0 0 2px rgba(255, 194, 75, 0.5), 0 0 24px rgba(255, 194, 75, 0.3);
+            }
+            .verdict.avoid .badge {
+                background: rgba(255, 107, 122, 0.14);
+                box-shadow: 0 0 0 2px rgba(255, 107, 122, 0.5), 0 0 24px rgba(255, 107, 122, 0.3);
+            }
+            .verdict h2 {
+                font-size: 1.35rem;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                margin-top: 0.15rem;
+            }
+            .verdict.buy h2 {
+                color: var(--good);
+            }
+            .verdict.caution h2 {
+                color: var(--warn);
+            }
+            .verdict.avoid h2 {
+                color: var(--bad);
+            }
+            .years {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.4rem;
+                margin-top: 0.45rem;
+                font-size: 0.78rem;
+            }
+            .years span {
+                padding: 0.2rem 0.6rem;
+                border-radius: 999px;
+                border: 1px solid var(--edge);
+                background: var(--canvas);
+                color: var(--soft-text);
+            }
+            .years span b {
+                color: var(--text);
+            }
+            .tiles {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.5rem;
+            }
+            .tile {
+                background: var(--surface);
+                border: 1px solid var(--edge);
+                border-radius: 14px;
+                padding: 0.65rem 0.75rem;
+            }
+            .tile .big {
+                font-size: 1.55rem;
+                font-weight: 800;
+                letter-spacing: -0.03em;
+                margin-top: 0.15rem;
+                font-variant-numeric: tabular-nums;
+            }
+            .tile .big small {
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: var(--muted);
+                margin-left: 0.2rem;
+                letter-spacing: 0;
+            }
+            .tile p {
+                font-size: 0.72rem;
+                color: var(--muted);
+                margin-top: 0.1rem;
+            }
+            .report {
+                background: var(--surface);
+                border: 1px solid var(--edge);
+                border-radius: 18px;
+                padding: 0.4rem 1.15rem 1rem;
+                line-height: 1.6;
+                font-size: 0.92rem;
+                box-shadow: var(--soft-shadow);
+            }
+            .report h2 {
+                font-size: 0.95rem;
+                font-weight: 700;
+                margin: 1rem 0 0.35rem;
+                display: flex;
+                align-items: center;
+                gap: 0.45rem;
+            }
+            .report h2::before {
+                content: "";
+                width: 8px;
+                height: 8px;
+                border-radius: 2px;
+                background: var(--gradient);
+                box-shadow: 0 0 8px rgba(46, 242, 176, 0.6);
+            }
+            .report ul {
+                padding-left: 1.1rem;
+            }
+            .report li + li {
+                margin-top: 0.3rem;
+            }
+            .report li::marker {
+                color: var(--volt);
+            }
+            .report strong {
+                color: #fff;
+            }
+            .report a {
+                display: inline-block;
+                font-family: var(--mono);
+                font-size: 0.66rem;
+                line-height: 1.3;
+                padding: 0.05rem 0.4rem;
+                margin: 0 0.1rem;
+                border-radius: 999px;
+                text-decoration: none;
+                color: var(--volt-2);
+                background: rgba(46, 242, 176, 0.1);
+                border: 1px solid rgba(46, 242, 176, 0.28);
+                vertical-align: 1px;
+                white-space: nowrap;
+            }
+            .report a:hover {
+                background: rgba(46, 242, 176, 0.22);
+            }
+            .hood summary {
+                cursor: pointer;
+                font-family: var(--mono);
+                font-size: 0.64rem;
+                font-weight: 700;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                color: var(--muted);
+                padding-left: 0.2rem;
+            }
+            .hood summary:hover {
+                color: var(--text);
+            }
+            .hood .call {
+                margin-top: 0.5rem;
+                padding: 0.55rem 0.7rem;
+                background: rgba(0, 0, 0, 0.35);
+                border: 1px solid var(--edge);
+                border-left: 3px solid var(--volt);
+                border-radius: 10px;
+            }
+            .hood .call b {
+                font-family: var(--mono);
+                font-size: 0.72rem;
+                color: var(--volt-2);
+            }
+            .hood .call b span {
+                color: var(--muted);
+                font-weight: 400;
+            }
+            .hood pre {
+                font-family: var(--mono);
+                font-size: 0.7rem;
+                line-height: 1.5;
+                color: var(--soft-text);
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                max-height: 200px;
+                overflow: auto;
+                margin-top: 0.3rem;
+            }
+            .tools-used {
+                font-family: var(--mono);
+                font-size: 0.62rem;
+                letter-spacing: 0.08em;
+                color: var(--muted);
+                padding-left: 0.2rem;
+            }
+
+            /* --- Composer --- */
+            .composer {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.7rem 0.8rem;
+                border-top: 1px solid var(--edge);
+            }
+            #user-input {
+                flex: 1;
+                min-width: 0;
+                border: none;
+                outline: none;
+                background: transparent;
+                font: inherit;
+                font-size: 0.95rem;
+                color: var(--text);
+                padding: 0.55rem 0.5rem;
+            }
+            #send-btn {
+                width: 2.5rem;
+                height: 2.5rem;
+                border-radius: 50%;
+                background: var(--gradient);
+                color: #03221b;
+                font-size: 1.05rem;
+                font-weight: 800;
+                flex: none;
+                box-shadow: var(--glow);
+            }
+            button:disabled {
+                opacity: 0.4;
+                cursor: wait;
+            }
+
+            @media (max-width: 640px) {
+                .app {
+                    padding: 0;
+                }
+                .window {
+                    border-radius: 0;
+                }
+                .footnote {
+                    display: none;
+                }
+                .about {
+                    grid-template-columns: 1fr;
+                }
+                .tiles {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .row.bot > .bolt {
+                    display: none;
+                }
+                .row.user .stack {
+                    max-width: 92%;
+                }
+                .verdict .badge {
+                    width: 3.4rem;
+                    height: 3.4rem;
+                    font-size: 1.5rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="stars"></div>
+        <div class="shooting-star"></div>
+
+        <!-- The charge orb: a glowing cell with a lightning bolt and a spinning charge ring. -->
+        <template id="bolt-template">
+            <div class="bolt">
+                <svg class="ring" viewBox="0 0 100 100" fill="none">
+                    <circle cx="50" cy="50" r="46" stroke="rgba(125,255,214,0.18)" stroke-width="3" />
+                    <circle cx="50" cy="50" r="46" stroke="#7dffd6" stroke-width="3" stroke-linecap="round" stroke-dasharray="70 220" />
+                </svg>
+                <svg class="icon" viewBox="0 0 24 24"><path d="M13.5 2 4.5 13.5h6L9.5 22l9-11.5h-6L13.5 2Z" fill="#03221b" /></svg>
+            </div>
+        </template>
+
+        <!-- Loading animation: an EV cruising down a night road, wheels spinning, posts flying by. -->
+        <template id="drive-template">
+            <svg class="road-scene" viewBox="0 0 220 78" aria-hidden="true">
+                <defs>
+                    <linearGradient id="beam" x1="0" x2="1">
+                        <stop offset="0" stop-color="#e9fff8" stop-opacity="0.55" />
+                        <stop offset="1" stop-color="#e9fff8" stop-opacity="0" />
+                    </linearGradient>
+                    <linearGradient id="body" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0" stop-color="#c2484a" />
+                        <stop offset="0.55" stop-color="#9a3134" />
+                        <stop offset="1" stop-color="#5e1a1d" />
+                    </linearGradient>
+                    <path id="spoke" d="M0 -1.3 Q3 -2.6 1.6 -6.2" fill="none" stroke="#4a4a52" stroke-width="1.3" stroke-linecap="round" />
+                </defs>
+                <rect width="220" height="78" fill="rgba(0,0,0,0.25)" />
+                <!-- distant hills, drifting slowly -->
+                <g class="hills" fill="rgba(34,184,255,0.12)">
+                    <path d="M0 46 Q30 30 60 44 T120 42 T180 40 T240 44 T300 40 T360 44 T440 42 V52 H0Z" />
+                </g>
+                <!-- road -->
+                <rect y="50" width="220" height="28" fill="#121a22" />
+                <line x1="0" y1="50.5" x2="220" y2="50.5" stroke="rgba(255,255,255,0.18)" />
+                <line class="dashes" x1="0" y1="66" x2="240" y2="66" stroke="rgba(255,255,255,0.55)" stroke-width="2" />
+                <!-- roadside posts, passing by -->
+                <g class="posts" stroke="rgba(255,255,255,0.35)" stroke-width="2">
+                    <line x1="40" y1="38" x2="40" y2="51" /><line x1="150" y1="38" x2="150" y2="51" /><line x1="260" y1="38" x2="260" y2="51" />
+                    <circle cx="40" cy="38" r="1.6" fill="#ffc24b" stroke="none" /><circle cx="150" cy="38" r="1.6" fill="#ffc24b" stroke="none" />
+                    <circle cx="260" cy="38" r="1.6" fill="#ffc24b" stroke="none" />
+                </g>
+                <!-- speed lines behind the car -->
+                <g class="speed" stroke="rgba(125,255,214,0.6)" stroke-width="1.5" stroke-linecap="round">
+                    <line x1="44" y1="44" x2="58" y2="44" /><line x1="38" y1="50" x2="54" y2="50" /><line x1="46" y1="56" x2="58" y2="56" />
+                </g>
+                <!-- headlight beam -->
+                <polygon points="154,52 216,43 216,63" fill="url(#beam)" />
+                <!-- the car: a red electric roadster with a space-suited driver -->
+                <g class="car">
+                    <!-- windshield frame and seat behind the driver -->
+                    <path d="M108.5 46.5 L112.5 39.8 L116.5 43.5" fill="none" stroke="#111" stroke-width="1.1" stroke-linejoin="round" />
+                    <path d="M92.5 46 L93 39.5 Q94 38.6 95.2 39.6 L96 46 Z" fill="#141418" />
+                    <!-- driver -->
+                    <path d="M95.5 46 Q95.5 42.6 98.5 42.3 L103 42.6 Q106 43 109 41.8 L109.8 43.4 Q106 45.6 102.5 45.4 L101 46 Z" fill="#e6e8f0" />
+                    <circle cx="98.6" cy="38.6" r="3.7" fill="#f2f3f8" />
+                    <path d="M99.4 36.2 Q102.6 36.4 102.4 39.2 Q102 41 99.8 40.8 Z" fill="#1d1f2a" />
+                    <circle cx="110.3" cy="42.6" r="1.9" fill="none" stroke="#b33" stroke-width="0.9" />
+                    <!-- body -->
+                    <path d="M57 48.5 Q58 45.5 68 44.6 L88 42.6 Q92 42.3 93.5 45.6 L109 46.7 Q120 45 136 45.2 Q149 45.6 153 50 L155.6 56.4 Q155.6 60.6 152 61 L60 61 Q57 60 57 55 Z" fill="url(#body)" />
+                    <path d="M60 56 Q90 59 118 57 Q140 55 155 57 L154.6 59.8 Q154 61 152 61 L60 61 Q58 60 57.6 57 Z" fill="#5a171a" opacity="0.8" />
+                    <path d="M60 47.6 Q70 45.8 88 44.4 M112 47.4 Q130 46.2 146 47" fill="none" stroke="#f3c6c3" stroke-width="0.6" opacity="0.8" />
+                    <path d="M93.8 46.4 L96.6 57.4 L118 57.4 Q120.6 52 119 46.9" fill="none" stroke="#3a0e10" stroke-width="0.7" />
+                    <!-- lights -->
+                    <rect x="152.6" y="51.2" width="3" height="2.2" rx="0.8" fill="#fffbe0" />
+                    <path d="M57.2 48.6 L60 48.4 L58.4 51 Z" fill="#ff6b7a" />
+                    <!-- wheels -->
+                    <circle cx="74" cy="58" r="9" fill="#2a0d0f" />
+                    <g transform="translate(74 58)">
+                        <g class="wheel">
+                            <circle r="7.6" fill="#0b0b0e" />
+                            <circle r="6.3" fill="#18181d" />
+                            <use href="#spoke" /><use href="#spoke" transform="rotate(60)" /><use href="#spoke" transform="rotate(120)" />
+                            <use href="#spoke" transform="rotate(180)" /><use href="#spoke" transform="rotate(240)" /><use href="#spoke" transform="rotate(300)" />
+                            <circle r="1.3" fill="#b9bac4" />
+                        </g>
+                    </g>
+                    <circle cx="137" cy="58" r="9" fill="#2a0d0f" />
+                    <g transform="translate(137 58)">
+                        <g class="wheel">
+                            <circle r="7.6" fill="#0b0b0e" />
+                            <circle r="6.3" fill="#18181d" />
+                            <use href="#spoke" /><use href="#spoke" transform="rotate(60)" /><use href="#spoke" transform="rotate(120)" />
+                            <use href="#spoke" transform="rotate(180)" /><use href="#spoke" transform="rotate(240)" /><use href="#spoke" transform="rotate(300)" />
+                            <circle r="1.3" fill="#b9bac4" />
+                        </g>
+                    </g>
+                </g>
+            </svg>
+        </template>
+
+        <div class="app">
+            <div class="window">
+                <header class="win-head">
+                    <div class="avatar-wrap" id="head-avatar"><span class="online"></span></div>
+                    <div class="who">
+                        <b>EV Research</b>
+                        <span>Online · NHTSA safety data + EPA specs</span>
+                    </div>
+                    <button class="icon-btn" id="new-btn" title="New chat" aria-label="New chat">↺</button>
+                </header>
+
+                <div id="scroll">
+                    <section id="welcome">
+                        <div class="orb" id="orb"></div>
+                        <h1>Is that EV a <span>good buy?</span></h1>
+                        <p>
+                            Name an electric car and the model years you're eyeing. A research team digs through
+                            federal recall, complaint and investigation records plus EPA specs, then writes a
+                            verdict where every fact links to its source.
+                        </p>
+                        <div class="about">
+                            <div>
+                                <span class="eyebrow">What it explores</span>
+                                NHTSA recalls, 26,000+ owner complaints and defect investigations for every EV
+                                since 2011, plus EPA range and efficiency.
+                            </div>
+                            <div>
+                                <span class="eyebrow">Who it's for</span>
+                                Anyone shopping for a new or used EV who wants to know which model years to
+                                avoid, and why.
+                            </div>
+                            <div>
+                                <span class="eyebrow">How to use it</span>
+                                Ask about one EV ("2021 Mach-E", "Ioniq 5"). A lead splits the question, four
+                                researchers run in parallel, and a writer cites every fact.
+                            </div>
+                        </div>
+                        <div class="options" id="examples">
+                            <div class="options-title">⚡ Try one</div>
+                        </div>
+                        <div class="sources-line">NHTSA RECALLS · COMPLAINTS · INVESTIGATIONS · 5-STAR RATINGS · EPA FUELECONOMY.GOV · WA DOL</div>
+                    </section>
+                    <div id="messages"></div>
+                </div>
+
+                <div class="composer">
+                    <input type="text" id="user-input" placeholder="Ask about an EV, e.g. Is a used 2022 Kia EV6 a good buy?" autocomplete="off" maxlength="500" />
+                    <button id="send-btn" aria-label="Send">➤</button>
+                </div>
+            </div>
+            <div class="footnote">GEMINI · LEAD + 4 RESEARCHERS + WRITER · EVERY FACT CITED</div>
+        </div>
+
+        <script>
+            const $ = (id) => document.getElementById(id);
+            const scroller = $("scroll");
+            const messages = $("messages");
+            const welcome = $("welcome");
+            const userInput = $("user-input");
+            const sendBtn = $("send-btn");
+            let sessionId = sessionStorage.getItem("evResearchSession");
+            let source = null;
+
+            const EXAMPLES = [
+                "Is a used 2021 Ford Mustang Mach-E a safe bet?",
+                "Hyundai Ioniq 5: which model years should I avoid buying used?",
+                "What's the history of the Chevy Bolt EV battery fire recall? Are 2022-23 Bolts affected?",
+                "Is the 2022 Volkswagen ID.4 reliable, or should I look for a newer year?",
+                "Are Teslas reliable?",
+            ];
+            const BEAT_ICON = { recalls: "🛠️", complaints: "💬", investigations: "🔍", specs: "🔋" };
+            const TOOL_LABELS = {
+                find_vehicle: "VEHICLE LOOKUP",
+                research: "RESEARCHERS",
+                get_recalls: "NHTSA RECALLS",
+                get_complaint_summary: "NHTSA COMPLAINTS",
+                search_complaints: "COMPLAINT SEARCH",
+                get_complaint_rate: "WA REGISTRATIONS",
+                get_investigations: "NHTSA INVESTIGATIONS",
+                get_safety_ratings: "5-STAR RATINGS",
+                get_specs: "EPA SPECS",
+            };
+
+            function el(tag, className, text) {
+                const node = document.createElement(tag);
+                if (className) node.className = className;
+                if (text !== undefined) node.textContent = text;
+                return node;
+            }
+            function bolt(size) {
+                const node = $("bolt-template").content.firstElementChild.cloneNode(true);
+                node.style.setProperty("--size", size + "px");
+                return node;
+            }
+            function parse(s) {
+                try {
+                    return JSON.parse(s);
+                } catch {
+                    return null;
+                }
+            }
+            function scrollDown() {
+                scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+            }
+
+            /* ---------- Live research board ---------- */
+            function makeBoard(stack) {
+                const drive = el("div", "drive");
+                drive.appendChild($("drive-template").content.firstElementChild.cloneNode(true));
+                const caption = el("small", "", "The lead is planning the trip…");
+                drive.appendChild(caption);
+                stack.appendChild(drive);
+
+                const board = el("div", "board rise");
+                board.hidden = true;
+                const head = el("div", "board-head");
+                head.appendChild(el("span", "eyebrow", "Research team"));
+                const battery = el("div", "battery");
+                const cell = el("div", "cell");
+                const fill = el("div", "fill");
+                cell.appendChild(fill);
+                const pct = el("span", "", "0 / 0");
+                battery.append(cell, pct);
+                head.appendChild(battery);
+                board.appendChild(head);
+                const leadLine = el("div", "lead-line");
+                board.appendChild(leadLine);
+                const grid = el("div", "researchers");
+                board.appendChild(grid);
+                stack.appendChild(board);
+
+                const cards = {};
+                let started = 0,
+                    done = 0;
+                const charge = () => {
+                    pct.textContent = `${done} / ${started} done`;
+                    fill.style.width = Math.max(6, (100 * done) / Math.max(1, started)) + "%";
+                };
+                return {
+                    drive,
+                    board,
+                    lead(text) {
+                        leadLine.innerHTML = "";
+                        leadLine.append(el("b", "", "Lead "), document.createTextNode(text));
+                    },
+                    researcher(e) {
+                        board.hidden = false;
+                        started++;
+                        const card = el("div", "rcard rise");
+                        const title = el("b", "", `${BEAT_ICON[e.beat] || "🔎"} ${e.agent}`);
+                        title.appendChild(el("span", "status", "researching…"));
+                        card.append(title, el("p", "", e.task), el("div", "tools"));
+                        grid.appendChild(card);
+                        cards[e.agent] = card;
+                        caption.textContent = `${started} researcher${started === 1 ? "" : "s"} on the road…`;
+                        charge();
+                        scrollDown();
+                    },
+                    tool(e) {
+                        const card = cards[e.agent];
+                        if (card) card.querySelector(".tools").appendChild(el("span", "chip", e.name));
+                        else if (e.agent === "Lead" && e.name === "find_vehicle") this.lead(`looking up ${e.args.make || ""} ${e.args.model || ""}`);
+                    },
+                    finished(e) {
+                        const card = cards[e.agent];
+                        if (!card) return;
+                        card.classList.add("done");
+                        card.querySelector(".status").textContent = "✓ done";
+                        done++;
+                        charge();
+                        if (done === started) caption.textContent = "Lead is checking for gaps…";
+                    },
+                    writing() {
+                        caption.textContent = "The writer is drafting your report…";
+                        this.lead("is done. The writer is drafting the report from the findings.");
+                    },
+                    stop() {
+                        drive.remove();
+                    },
+                };
+            }
+
+            /* ---------- Report ---------- */
+            function statTiles(st) {
+                if (!st) return null;
+                const tiles = el("div", "tiles rise");
+                const tile = (label, big, unit, note) => {
+                    const t = el("div", "tile");
+                    t.appendChild(el("span", "eyebrow", label));
+                    const b = el("div", "big", big);
+                    if (unit) b.appendChild(el("small", "", unit));
+                    t.append(b, el("p", "", note));
+                    tiles.appendChild(t);
+                };
+                if (st.recalls !== undefined) tile("Recalls", st.recalls, "", `${st.recalls_ota} fixed over the air`);
+                if (st.complaints !== undefined) tile("Owner complaints", st.complaints.toLocaleString(), "", `${st.crashes} crashes · ${st.fires} fires`);
+                if (st.investigations !== undefined) tile("Investigations", st.investigations, "", `${st.investigations_open} still open`);
+                if (st.range_max !== undefined) tile("EPA range", st.range_max, "mi", `best trim · lowest ${st.range_min} mi`);
+                return tiles.children.length ? tiles : null;
+            }
+            // Short, consistent labels for citations, whatever the writer called them.
+            function citeLabel(a) {
+                const u = a.href, t = a.textContent.trim();
+                let m;
+                if ((m = u.match(/campaignNumber=(\d{2})V(\d{3})/))) return `${m[1]}V-${m[2]}`;
+                if ((m = u.match(/odinumber=(\d+)/))) return `ODI ${m[1]}`;
+                if ((m = u.match(/complaintsByVehicle.*modelYear=(\d{4})/))) return `${m[1]} complaints`;
+                if ((m = u.match(/recallsByVehicle.*modelYear=(\d{4})/))) return `${m[1]} recalls`;
+                if ((m = u.match(/nhtsaId=(\w+)/))) return m[1];
+                if (/SafetyRatings/.test(u)) return "5-star";
+                if (/nhtsa-datasets-and-apis/.test(u)) return "NHTSA complaints data";
+                if (/fueleconomy\.gov/.test(u)) return "EPA";
+                if (/data\.wa\.gov/.test(u)) return "WA DOL";
+                return t.startsWith("http") || t === "source" ? new URL(u).hostname : t;
+            }
+            function verdictCard(line) {
+                const parts = line.replace(/^VERDICT:\s*/i, "").split("|").map((s) => s.trim());
+                const call = parts[0] || "";
+                const kind = /avoid/i.test(call) ? "avoid" : /caution/i.test(call) ? "caution" : "buy";
+                const card = el("div", `verdict ${kind} rise`);
+                card.appendChild(el("div", "badge", kind === "buy" ? "✅" : kind === "avoid" ? "🍋" : "⚠️"));
+                const body = el("div");
+                body.appendChild(el("span", "eyebrow", "Verdict"));
+                body.appendChild(el("h2", "", call));
+                const years = el("div", "years");
+                for (const p of parts.slice(1)) {
+                    const [k, ...v] = p.split(":");
+                    const s = el("span");
+                    s.append(document.createTextNode(k.trim() + ": "), el("b", "", v.join(":").trim()));
+                    years.appendChild(s);
+                }
+                body.appendChild(years);
+                card.appendChild(body);
+                return card;
+            }
+            function hood(calls) {
+                const d = el("details", "hood");
+                d.appendChild(el("summary", "", `Under the hood · ${calls.length} tool call${calls.length === 1 ? "" : "s"}`));
+                for (const c of calls) {
+                    const div = el("div", "call");
+                    const name = el("b", "", c.name + " ");
+                    name.appendChild(el("span", "", "· " + c.agent));
+                    div.append(name, el("pre", "", JSON.stringify(c.args)), el("pre", "", c.result.length > 1500 ? c.result.slice(0, 1500) + " …" : c.result));
+                    d.appendChild(div);
+                }
+                return d;
+            }
+            function showResult(stack, ui, data) {
+                ui.stop();
+                const calls = data.tool_calls || [];
+                if (data.clarify) {
+                    ui.board.remove();
+                    const b = el("div", "bubble bot clarify rise");
+                    b.appendChild(el("span", "eyebrow", "One quick question"));
+                    b.appendChild(el("div", "", data.response));
+                    stack.appendChild(b);
+                    return;
+                }
+                let text = data.response || "";
+                const first = text.split("\n")[0];
+                if (/^VERDICT:/i.test(first)) {
+                    stack.appendChild(verdictCard(first));
+                    text = text.split("\n").slice(1).join("\n");
+                }
+                const tiles = statTiles(data.stats);
+                if (tiles) stack.appendChild(tiles);
+                const report = el("div", "report rise");
+                report.innerHTML = DOMPurify.sanitize(marked.parse(text));
+                report.querySelectorAll("a").forEach((a) => {
+                    a.textContent = citeLabel(a);
+                    a.title = a.href;
+                    a.target = "_blank";
+                    a.rel = "noopener";
+                });
+                stack.appendChild(report);
+                const links = report.querySelectorAll("a").length;
+                const used = [...new Set(calls.map((c) => TOOL_LABELS[c.name] || c.name.toUpperCase()))];
+                stack.appendChild(el("div", "tools-used", `${links} CITATIONS · SOURCES · ${used.join(" · ")}`));
+                stack.appendChild(hood(calls));
+            }
+
+            /* ---------- Chat ---------- */
+            function addUser(text) {
+                const row = el("div", "row user rise");
+                const stack = el("div", "stack");
+                stack.appendChild(el("div", "bubble me", text));
+                row.appendChild(stack);
+                messages.appendChild(row);
+            }
+            function addAssistant() {
+                const row = el("div", "row bot rise");
+                row.appendChild(bolt(30));
+                const stack = el("div", "stack");
+                row.appendChild(stack);
+                messages.appendChild(row);
+                return stack;
+            }
+            function send(text) {
+                text = (text || userInput.value).trim();
+                if (!text || sendBtn.disabled) return;
+                welcome.hidden = true;
+                userInput.value = "";
+                sendBtn.disabled = true;
+                addUser(text);
+                const stack = addAssistant();
+                const ui = makeBoard(stack);
+                scrollDown();
+
+                const params = new URLSearchParams({ message: text });
+                if (sessionId) params.set("session_id", sessionId);
+                source = new EventSource("/run?" + params);
+                const end = () => {
+                    source.close();
+                    sendBtn.disabled = false;
+                    userInput.focus();
+                    scrollDown();
+                };
+                source.onmessage = (msg) => {
+                    const e = JSON.parse(msg.data);
+                    if (e.type === "start") {
+                        sessionId = e.session_id;
+                        sessionStorage.setItem("evResearchSession", sessionId);
+                    } else if (e.type === "researcher") ui.researcher(e);
+                    else if (e.type === "researcher_done") ui.finished(e);
+                    else if (e.type === "tool") ui.tool(e);
+                    else if (e.type === "activity" && e.agent === "Writer") ui.writing();
+                    else if (e.type === "done") {
+                        showResult(stack, ui, e);
+                        end();
+                    } else if (e.type === "error") {
+                        ui.stop();
+                        const b = el("div", "bubble bot");
+                        b.appendChild(el("span", "error", "Research stopped: " + e.message));
+                        stack.appendChild(b);
+                        end();
+                    }
+                };
+                source.onerror = () => {
+                    if (source.readyState === EventSource.CLOSED) return;
+                    ui.stop();
+                    const b = el("div", "bubble bot");
+                    b.appendChild(el("span", "error", "Lost the connection to the server. Try again."));
+                    stack.appendChild(b);
+                    end();
+                };
+            }
+            function newChat() {
+                if (source) source.close();
+                if (sessionId) fetch("/clear?session_id=" + encodeURIComponent(sessionId), { method: "POST" }).catch(() => {});
+                sessionId = null;
+                sessionStorage.removeItem("evResearchSession");
+                messages.innerHTML = "";
+                welcome.hidden = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+
+            /* ---------- Wiring ---------- */
+            $("orb").appendChild(bolt(104));
+            $("head-avatar").prepend(bolt(38));
+            for (const q of EXAMPLES) {
+                const b = el("button", "", q);
+                b.addEventListener("click", () => send(q));
+                $("examples").appendChild(b);
+            }
+            sendBtn.addEventListener("click", () => send());
+            userInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") send();
+            });
+            $("new-btn").addEventListener("click", newChat);
+            userInput.focus();
+        </script>
+    </body>
+</html>
